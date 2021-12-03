@@ -77,9 +77,9 @@ python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE train.py \
 --bs_mult NUM_BATCH_PER_SINGLE_GPU \
 ...
 ```
-You can train HANet (based on ResNet-101) using **finely annotated training and validation set** with following command.
+You can train CSSNet (based on ResNet-101) using **finely annotated training and validation set** with following command.
 ```
-<path_to_hanet>$ CUDA_VISIBLE_DEVICES=0,1,2,3 ./scripts/train_r101_os8_hanet_best.sh
+<path_to_cssn>$ CUDA_VISIBLE_DEVICES=0,1,2,3 ./scripts/
 ```
 
 
