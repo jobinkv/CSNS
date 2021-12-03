@@ -30,7 +30,7 @@ from network import Resnet
 from network.PosEmbedding import PosEmbedding2D
 #from network.HANet import HANet_Conv
 from network.mynn import initialize_weights, Norm2d, Upsample, freeze_weights, unfreeze_weights, RandomPosVal_Masking, RandomVal_Masking, Zero_Masking, RandomPosZero_Masking
-from network.da_att import PAM_Module, CAM_Module
+from network.template_att import PAM_Module, CAM_Module, TPL_Module, POS_Inject,POS_Injectv1, LEAM_Module, Only_loc_addition 
 from ipdb import set_trace as st
 import torchvision.models as models
 
@@ -99,7 +99,7 @@ class _AtrousSpatialPyramidPoolingModule(nn.Module):
         return out
 
 
-class DeepV3PlusHANet(nn.Module):
+class DeepV3PlusLEANet(nn.Module):
     """
     Implement DeepLab-V3 model
     A: stride8
@@ -109,7 +109,7 @@ class DeepV3PlusHANet(nn.Module):
 
     def __init__(self, num_classes, trunk='resnet-101', criterion=None, criterion_cluster = None, criterion_aux=None,
                 variant='D', skip='m1', skip_num=48, args=None):
-        super(DeepV3PlusHANet, self).__init__()
+        super(DeepV3PlusLEANet, self).__init__()
         self.criterion = criterion
         self.criterion_aux = criterion_aux
         self.criterion_cluster = criterion_cluster
@@ -337,8 +337,16 @@ class DeepV3PlusHANet(nn.Module):
             Norm2d(256),
             nn.ReLU(inplace=True))
 
+        self.first_concate_feat = nn.Sequential(
+            nn.Conv2d(381, 256, kernel_size=3, padding=1, bias=False),
+            Norm2d(256),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1, bias=False),
+            Norm2d(256),
+            nn.ReLU(inplace=True))
+
         self.final1 = nn.Sequential(
-            nn.Conv2d(329, 256, kernel_size=3, padding=1, bias=False),
+            nn.Conv2d(304, 256, kernel_size=3, padding=1, bias=False),
             Norm2d(256),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 256, kernel_size=3, padding=1, bias=False),
@@ -358,7 +366,7 @@ class DeepV3PlusHANet(nn.Module):
             )
             initialize_weights(self.dsn)
         norm_layer=nn.BatchNorm2d
-        self.head = DANetHead(self.args,2048, num_classes, norm_layer)
+        self.head = DANetHead(1280, num_classes, norm_layer,args.pos_rfactor)
         self.templateSelector = nn.Sequential(
                 nn.Conv2d(2048, 256, kernel_size=3, stride=1, padding=1),
                 Norm2d(256),
@@ -367,6 +375,7 @@ class DeepV3PlusHANet(nn.Module):
                 nn.Conv2d(256, self.args.num_cluster, kernel_size=1, stride=1, padding=0, bias=True),
                 nn.AdaptiveAvgPool2d((1, 1))
                 )
+        self.loc_embedding = Only_loc_addition(48, args.pos_rfactor)
        
         initialize_weights(self.aspp)
         initialize_weights(self.bot_aspp)
@@ -382,105 +391,65 @@ class DeepV3PlusHANet(nn.Module):
         low_level = x
         x = self.layer2(x)  # 100
         x = self.layer3(x)  # 100
+        aux_out = x
         x = self.layer4(x)  # 100
         represent = x
-
-
-
-        danet_out = self.head(represent)
-        #main_out = Upsample(danet_out[0], imsize)
-        pos_attn = Upsample(danet_out[1], imsize)
-        cha_attn = Upsample(danet_out[2], imsize)
-
-
         x = self.aspp(x)
         dec0_up = self.bot_aspp(x)
+        template_att = self.head(x,pos)
+
+        first_concat = [template_att,dec0_up]
+        first_concat = torch.cat(first_concat, 1)
+        first_combined = self.first_concate_feat(first_concat)
+        first_combined = Upsample(first_combined, low_level.size()[2:])
+
         dec0_fine = self.bot_fine(low_level)
-
-
-
-
-
-
-        dec0_up = Upsample(dec0_up, low_level.size()[2:])
         main0_up = Upsample(dec0_fine, low_level.size()[2:])
-        attn0_up = Upsample(danet_out[0], low_level.size()[2:])
-        dec0 = [main0_up, dec0_up,attn0_up]
+        locations = self.loc_embedding(main0_up,pos)
+
+        dec0 = [first_combined,main0_up+locations]
         dec0 = torch.cat(dec0, 1)
         dec1 = self.final1(dec0)
         dec2 = self.final2(dec1)
         main_out = Upsample(dec2, imsize)
-
         clust = self.templateSelector(represent)
 
         if self.training:
             loss1 = self.criterion(main_out, gts)
-            clust = torch.flatten(clust, 1)
-            clusr_loss = self.criterion_cluster(clust, cluster)
             if self.args.aux_loss is True:
-                loss2 = self.criterion_aux(pos_attn, gts)
-                loss3 = self.criterion_aux(cha_attn, gts)
-            return (loss1,clusr_loss,0.2*loss2+0.2*loss3,loss3)
+                aux_out = self.dsn(aux_out)
+                aux_out = Upsample(aux_out, imsize)
+                loss2 = self.criterion_aux(aux_out, gts)
+                #loss4 = self.criterion_aux(tmt_attn, gts)
+            return (loss1,loss1,loss2, loss2) # loss1+0.4*loss2
         else:
             return main_out,clust
 
         #'mode': 'bilinear', 'align_corners': True
 
 class DANetHead(nn.Module):
-    def __init__(self, args,in_channels, out_channels, norm_layer):
+    def __init__(self,in_channels, out_channels, norm_layer, pos_rfactor):
         super(DANetHead, self).__init__()
-        inter_channels =  in_channels // 4
+        inter_channels = 125 #  in_channels // 4
         self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                                    norm_layer(inter_channels),
                                    nn.ReLU())
         
-        self.conv5c = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
-                                   norm_layer(inter_channels),
-                                   nn.ReLU())
 
-        self.sa = PAM_Module(inter_channels)
-        self.sc = CAM_Module(inter_channels)
+        self.tl = LEAM_Module(inter_channels,pos_rfactor)
         self.conv51 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
                                    norm_layer(inter_channels),
                                    nn.ReLU())
-        self.conv52 = nn.Sequential(nn.Conv2d(inter_channels, inter_channels, 3, padding=1, bias=False),
-                                   norm_layer(inter_channels),
-                                   nn.ReLU())
 
-        self.conv6 = nn.Sequential(nn.Dropout2d(0.1, False), nn.Conv2d(inter_channels, out_channels, 1))
-        self.conv7 = nn.Sequential(nn.Dropout2d(0.1, False), nn.Conv2d(inter_channels, out_channels, 1))
-
-        self.conv8 = nn.Sequential(nn.Dropout2d(0.1, False), nn.Conv2d(inter_channels, out_channels, 1))
-        self.conv9 = nn.Sequential(nn.Dropout2d(0.1, False), nn.Conv2d(inter_channels, out_channels, 1))
         #temp = torch.load(args.template_snapshot,map_location=torch.device('cuda'))
         #self.template = temp.clone().to(torch.float32)
-    def forward(self, x):
+    def forward(self, x,tpl):
         batch = x.shape[0]
         feat1 = self.conv5a(x)
-        sa_feat = self.sa(feat1)
-        sa_conv = self.conv51(sa_feat)
-        sa_output = self.conv6(sa_conv)
-
-        feat2 = self.conv5c(x)
-        sc_feat = self.sc(feat2)
-        sc_conv = self.conv52(sc_feat)
-        sc_output = self.conv7(sc_conv)
-        #if batch==2:
-        #    template_wt = torch.stack([self.template,self.template]) 
-        #else:
-        #    template_wt = self.template.unsqueeze(0)
-        #t_select_mul = t_select.repeat(1,25,68,90)
-        #template_att = template_wt*t_select_mul
-        #tm_output =  self.conv9(template_att) 
-        feat_sum = sa_conv+sc_conv #+template_att
+        tl_feat = self.tl(feat1,tpl)
+        tl_conv = self.conv51(tl_feat)
         
-        sasc_output = self.conv8(feat_sum)
-
-        output = [sasc_output]
-        output.append(sa_output)
-        output.append(sc_output)
-        #output.append(tm_output)
-        return tuple(output)
+        return tl_conv
 
 def get_final_layer(model):
     unfreeze_weights(model.final)
@@ -492,7 +461,7 @@ def DeepR50V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
     Resnet 50 Based Network
     """
     print("Model : DeepLabv3+, Backbone : ResNet-50")
-    return DeepV3PlusHANet(num_classes, trunk='resnet-50', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
 def DeepR50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
@@ -500,7 +469,7 @@ def DeepR50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     Resnet 50 Based Network
     """
     print("Model : DeepLabv3+, Backbone : ResNet-50")
-    return DeepV3PlusHANet(num_classes, trunk='resnet-50', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepR101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
@@ -508,7 +477,7 @@ def DeepR101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     Resnet 101 Based Network
     """
     print("Model : DeepLabv3+, Backbone : ResNet-101")
-    return DeepV3PlusHANet(num_classes, trunk='resnet-101', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnet-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepR101V3PlusD_HANet_OS8(args, num_classes, criterion,criterion_cluster,criterion_aux):
@@ -516,7 +485,7 @@ def DeepR101V3PlusD_HANet_OS8(args, num_classes, criterion,criterion_cluster,cri
     Resnet 101 Based Network
     """
     print("Model : DeepLabv3+, Backbone : ResNet-101")
-    return DeepV3PlusHANet(num_classes , trunk='resnet-101', criterion=criterion,criterion_cluster=criterion_cluster, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes , trunk='resnet-101', criterion=criterion,criterion_cluster=criterion_cluster, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
 
@@ -525,7 +494,7 @@ def DeepR152V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
     Resnet 152 Based Network
     """
     print("Model : DeepLabv3+, Backbone : ResNet-152")
-    return DeepV3PlusHANet(num_classes, trunk='resnet-152', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnet-152', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
 
@@ -535,7 +504,7 @@ def DeepResNext50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     Resnext 50 Based Network
     """
     print("Model : DeepLabv3+, Backbone : ResNext-50 32x4d")
-    return DeepV3PlusHANet(num_classes, trunk='resnext-50', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnext-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepResNext101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
@@ -543,7 +512,7 @@ def DeepResNext101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     Resnext 101 Based Network
     """
     print("Model : DeepLabv3+, Backbone : ResNext-101 32x8d")
-    return DeepV3PlusHANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepWideResNet50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
@@ -551,7 +520,7 @@ def DeepWideResNet50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     Wide ResNet 50 Based Network
     """
     print("Model : DeepLabv3+, Backbone : wide_resnet-50")
-    return DeepV3PlusHANet(num_classes, trunk='wide_resnet-50', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='wide_resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepWideResNet50V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
@@ -559,7 +528,7 @@ def DeepWideResNet50V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_au
     Wide ResNet 50 Based Network
     """
     print("Model : DeepLabv3+, Backbone : wide_resnet-50")
-    return DeepV3PlusHANet(num_classes, trunk='wide_resnet-50', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='wide_resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
 def DeepWideResNet101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
@@ -567,7 +536,7 @@ def DeepWideResNet101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     Wide ResNet 101 Based Network
     """
     print("Model : DeepLabv3+, Backbone : wide_resnet-101")
-    return DeepV3PlusHANet(num_classes, trunk='wide_resnet-101', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='wide_resnet-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepWideResNet101V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
@@ -575,7 +544,7 @@ def DeepWideResNet101V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_a
     Wide ResNet 101 Based Network
     """
     print("Model : DeepLabv3+, Backbone : wide_resnet-101")
-    return DeepV3PlusHANet(num_classes, trunk='wide_resnet-101', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='wide_resnet-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
 
@@ -584,7 +553,7 @@ def DeepResNext101V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux)
     ResNext 101 Based Network
     """
     print("Model : DeepLabv3+, Backbone : resnext-101")
-    return DeepV3PlusHANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
 def DeepResNext101V3PlusD_HANet_OS4(args, num_classes, criterion, criterion_aux):
@@ -592,7 +561,7 @@ def DeepResNext101V3PlusD_HANet_OS4(args, num_classes, criterion, criterion_aux)
     ResNext 101 Based Network
     """
     print("Model : DeepLabv3+, Backbone : resnext-101")
-    return DeepV3PlusHANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D4', skip='m1', args=args)
 
 def DeepShuffleNetV3PlusD_HANet_OS32(args, num_classes, criterion, criterion_aux):
@@ -600,7 +569,7 @@ def DeepShuffleNetV3PlusD_HANet_OS32(args, num_classes, criterion, criterion_aux
     ShuffleNet Based Network
     """
     print("Model : DeepLabv3+, Backbone : shufflenetv2")
-    return DeepV3PlusHANet(num_classes, trunk='shufflenetv2', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='shufflenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D32', skip='m1', args=args)
 
 
@@ -609,7 +578,7 @@ def DeepMNASNet05V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     MNASNET Based Network
     """
     print("Model : DeepLabv3+, Backbone : mnas_0_5")
-    return DeepV3PlusHANet(num_classes, trunk='mnasnet_05', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='mnasnet_05', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepMNASNet10V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
@@ -617,7 +586,7 @@ def DeepMNASNet10V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     MNASNET Based Network
     """
     print("Model : DeepLabv3+, Backbone : mnas_1_0")
-    return DeepV3PlusHANet(num_classes, trunk='mnasnet_10', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='mnasnet_10', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 
@@ -626,7 +595,7 @@ def DeepShuffleNetV3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     ShuffleNet Based Network
     """
     print("Model : DeepLabv3+, Backbone : shufflenetv2")
-    return DeepV3PlusHANet(num_classes, trunk='shufflenetv2', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='shufflenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepMobileNetV3PlusD_HANet(args, num_classes, criterion, criterion_aux):
@@ -634,7 +603,7 @@ def DeepMobileNetV3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     ShuffleNet Based Network
     """
     print("Model : DeepLabv3+, Backbone : mobilenetv2")
-    return DeepV3PlusHANet(num_classes, trunk='mobilenetv2', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='mobilenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
 def DeepMobileNetV3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
@@ -642,7 +611,7 @@ def DeepMobileNetV3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
     ShuffleNet Based Network
     """
     print("Model : DeepLabv3+, Backbone : mobilenetv2")
-    return DeepV3PlusHANet(num_classes, trunk='mobilenetv2', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='mobilenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
 def DeepShuffleNetV3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
@@ -650,5 +619,5 @@ def DeepShuffleNetV3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux)
     ShuffleNet Based Network
     """
     print("Model : DeepLabv3+, Backbone : shufflenetv2")
-    return DeepV3PlusHANet(num_classes, trunk='shufflenetv2', criterion=criterion, criterion_aux=criterion_aux,
+    return DeepV3PlusLEANet(num_classes, trunk='shufflenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)

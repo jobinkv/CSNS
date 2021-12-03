@@ -36,9 +36,9 @@ dataset='spaseAll' #'spase' #'wise'
 attn='LEANetv1'
 tails='_final.pth'
 mode='train' #'trainval'
-model='deepv3_v5'
+model='deepv3'
 dot='.'
-arch='DeepR101V3PlusD_HANet_OS8'
+arch='DeepR101V3PlusD_LEANet_OS8'
 model_name=$attn-$arch-$dataset$tails
 cd /home/jobinkv/attention_layers/final_run/$attn
 

@@ -72,10 +72,25 @@ This pretrained model is from [MIT CSAIL Computer Vision Group](http://scenepars
 ### Training Networks
 According to the specification of your gpu system, you may modify the training script.
 ```
-python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE train.py \ 
-...
---bs_mult NUM_BATCH_PER_SINGLE_GPU \
-...
+dataset='spase' #'spase' #'wise' 
+tails='_final.pth'
+mode='train' #'trainval'
+model='deepv3'
+dot='.'
+arch='DeepR101V3PlusD_LEANet_OS8'
+cd /path/to/CSSN/
+
+python trainslide.py --dataset $dataset\
+  --arch network.$model$dot$arch \
+  --city_mode $mode  --lr 0.04 --poly_exp 0.9 \
+  --hanet_lr 0.04 --hanet_poly_exp 0.9 \
+  --crop_size 564  --color_aug 0.25  --max_iter 57000  \
+  --bs_mult 2 --pos_rfactor 18 --dropout 0.1  \
+  --best_model_name $model_name --jobid $SLURM_JOB_ID\
+  --exp $SLURM_NODELIST_$SLURM_JOB_ID --ckpt /ssd_scratch/cvit/jobinkv/ \
+  --tb_path "/ssd_scratch/cvit/jobinkv/$SLURM_JOB_ID" --syncbn --sgd --gblur --aux_loss \
+  --snapshot "/ssd_scratch/cvit/jobinkv/$SLURM_JOB_ID/$model_name" \
+  --template_selection_loss_contri 0.1 --backbone_lr 0.01 --multi_optim
 ```
 You can train CSSNet (based on ResNet-101) using **finely annotated training and validation set** with following command.
 ```
