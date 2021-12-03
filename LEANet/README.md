@@ -38,3 +38,17 @@ conda install tqdm==4.46.0
 conda install scikit-image==0.16.2
 pip install tensorboardX==2.0
 pip install thop
+```
+### Datasets
+We evaludated LEANet on [WiSe](https://cvhci.anthropomatik.kit.edu/~mhaurile/wise/) and [SPaSe](https://cvhci.anthropomatik.kit.edu/~mhaurile//spase/).<br>
+The files and make the directory structures as follows.
+```
+spase
+|-- img
+`-- labels
+
+wise
+|-- img
+`-- labels
+```
+
