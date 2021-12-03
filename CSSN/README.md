@@ -61,3 +61,11 @@ __C.DATASET.SPASE_DIR = '/ssd_scratch/cvit/jobinkv/spase'
 
 #### All models trained for our paper
 You can download all models evaluated in our paper at [One Drive](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/jobin_kv_research_iiit_ac_in/EuAOiunVn05ErqNr3S_VxXIBaSxq45DHidtjG1z1zdKFqg?e=xb22UG)
+
+#### ImageNet pretrained ResNet-101 which has three 3×3 convolutions in the first layer
+To train ResNet-101 based HANet, you should download ImageNet pretrained ResNet-101 from [this link](https://iiitaphyd-my.sharepoint.com/:u:/g/personal/jobin_kv_research_iiit_ac_in/EdEMPBOhuM9FisCUKxQ-gYoBk9Fvv3RLpYyDg7O_tQsEsQ?e=KfcH9K). Put it into following directory.
+```
+<path_to_cssn>/pretrained/resnet101-imagenet.pth
+```
+This pretrained model is from [MIT CSAIL Computer Vision Group](http://sceneparsing.csail.mit.edu/)
+
