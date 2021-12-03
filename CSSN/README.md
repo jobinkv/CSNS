@@ -69,6 +69,21 @@ To train ResNet-101 based HANet, you should download ImageNet pretrained ResNet-
 ```
 This pretrained model is from [MIT CSAIL Computer Vision Group](http://sceneparsing.csail.mit.edu/)
 
+### Training Networks
+According to the specification of your gpu system, you may modify the training script.
+```
+python -m torch.distributed.launch --nproc_per_node=NUM_GPUS_YOU_HAVE train.py \ 
+...
+--bs_mult NUM_BATCH_PER_SINGLE_GPU \
+...
+```
+You can train HANet (based on ResNet-101) using **finely annotated training and validation set** with following command.
+```
+<path_to_hanet>$ CUDA_VISIBLE_DEVICES=0,1,2,3 ./scripts/train_r101_os8_hanet_best.sh
+```
+
+
+
 ## Citation
 If you find this work useful for your research, please cite our paper:
 ```
@@ -80,4 +95,6 @@ month = {December},
 year = {2021}
 }
 ```
-
+## Acknowledgments
+Our pytorch implementation is heavily derived from [NVIDIA segmentation](https://github.com/NVIDIA/semantic-segmentation).
+Thanks to the NVIDIA implementations.
