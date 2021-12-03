@@ -86,14 +86,17 @@ python trainslide.py --dataset $dataset\
   --hanet_lr 0.04 --hanet_poly_exp 0.9 \
   --crop_size 564  --color_aug 0.25  --max_iter 57000  \
   --bs_mult 2 --pos_rfactor 18 --dropout 0.1  \
-  --best_model_name $model_name --jobid $SLURM_JOB_ID\
-  --exp $SLURM_NODELIST_$SLURM_JOB_ID --ckpt /ssd_scratch/cvit/jobinkv/ \
+  --best_model_name $model_name --jobid '001'\
+  --exp 'leanet_01' --ckpt /path/to/save/trained/model/ \
   --tb_path "/path/to/tensor/flow/out" --syncbn --sgd --gblur --aux_loss \
   --template_selection_loss_contri 0.1 --backbone_lr 0.01 --multi_optim
 ```
 You can train CSSNet (based on ResNet-101) using **finely annotated training and validation set** with following command.
 ```
-<path_to_cssn>$ CUDA_VISIBLE_DEVICES=0,1,2,3 ./scripts/
+python trainslide.py --dataset $dataset\
+  --arch network.$model$dot$arch \
+  --snapshot "/path/to/trained/model.pth"
+
 ```
 
 

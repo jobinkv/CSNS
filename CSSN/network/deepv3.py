@@ -28,7 +28,6 @@ import torch
 from torch import nn
 from network import Resnet
 from network.PosEmbedding import PosEmbedding2D
-#from network.HANet import HANet_Conv
 from network.mynn import initialize_weights, Norm2d, Upsample, freeze_weights, unfreeze_weights, RandomPosVal_Masking, RandomVal_Masking, Zero_Masking, RandomPosZero_Masking
 from network.template_att import PAM_Module, CAM_Module, TPL_Module, POS_Inject,POS_Injectv1, LEAM_Module, Only_loc_addition 
 from ipdb import set_trace as st
@@ -121,7 +120,7 @@ class DeepV3PlusLEANet(nn.Module):
             if self.args.hanet[i] > 0:
                 self.num_attention_layer += 1
 
-        print("#### HANet layers", self.num_attention_layer)
+        print("#### LEANet layers", self.num_attention_layer)
         
 
         if trunk == 'shufflenetv2':
@@ -366,7 +365,7 @@ class DeepV3PlusLEANet(nn.Module):
             )
             initialize_weights(self.dsn)
         norm_layer=nn.BatchNorm2d
-        self.head = DANetHead(1280, num_classes, norm_layer,args.pos_rfactor)
+        self.head = LEANetHead(1280, num_classes, norm_layer,args.pos_rfactor)
         self.templateSelector = nn.Sequential(
                 nn.Conv2d(2048, 256, kernel_size=3, stride=1, padding=1),
                 Norm2d(256),
@@ -427,9 +426,9 @@ class DeepV3PlusLEANet(nn.Module):
 
         #'mode': 'bilinear', 'align_corners': True
 
-class DANetHead(nn.Module):
+class LEANetHead(nn.Module):
     def __init__(self,in_channels, out_channels, norm_layer, pos_rfactor):
-        super(DANetHead, self).__init__()
+        super(LEANetHead, self).__init__()
         inter_channels = 125 #  in_channels // 4
         self.conv5a = nn.Sequential(nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
                                    norm_layer(inter_channels),
@@ -456,7 +455,7 @@ def get_final_layer(model):
     return model.final
 
 
-def DeepR50V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
+def DeepR50V3PlusD_LEANet_OS8(args, num_classes, criterion, criterion_aux):
     """
     Resnet 50 Based Network
     """
@@ -464,7 +463,7 @@ def DeepR50V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
-def DeepR50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepR50V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     Resnet 50 Based Network
     """
@@ -472,7 +471,7 @@ def DeepR50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepR101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepR101V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     Resnet 101 Based Network
     """
@@ -480,7 +479,7 @@ def DeepR101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='resnet-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepR101V3PlusD_HANet_OS8(args, num_classes, criterion,criterion_cluster,criterion_aux):
+def DeepR101V3PlusD_LEANet_OS8(args, num_classes, criterion,criterion_cluster,criterion_aux):
     """
     Resnet 101 Based Network
     """
@@ -489,7 +488,7 @@ def DeepR101V3PlusD_HANet_OS8(args, num_classes, criterion,criterion_cluster,cri
                     variant='D', skip='m1', args=args)
 
 
-def DeepR152V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
+def DeepR152V3PlusD_LEANet_OS8(args, num_classes, criterion, criterion_aux):
     """
     Resnet 152 Based Network
     """
@@ -499,7 +498,7 @@ def DeepR152V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
 
 
 
-def DeepResNext50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepResNext50V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     Resnext 50 Based Network
     """
@@ -507,7 +506,7 @@ def DeepResNext50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='resnext-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepResNext101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepResNext101V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     Resnext 101 Based Network
     """
@@ -515,7 +514,7 @@ def DeepResNext101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepWideResNet50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepWideResNet50V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     Wide ResNet 50 Based Network
     """
@@ -523,7 +522,7 @@ def DeepWideResNet50V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='wide_resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepWideResNet50V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
+def DeepWideResNet50V3PlusD_LEANet_OS8(args, num_classes, criterion, criterion_aux):
     """
     Wide ResNet 50 Based Network
     """
@@ -531,7 +530,7 @@ def DeepWideResNet50V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_au
     return DeepV3PlusLEANet(num_classes, trunk='wide_resnet-50', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
-def DeepWideResNet101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepWideResNet101V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     Wide ResNet 101 Based Network
     """
@@ -539,7 +538,7 @@ def DeepWideResNet101V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='wide_resnet-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepWideResNet101V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
+def DeepWideResNet101V3PlusD_LEANet_OS8(args, num_classes, criterion, criterion_aux):
     """
     Wide ResNet 101 Based Network
     """
@@ -548,7 +547,7 @@ def DeepWideResNet101V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_a
                     variant='D', skip='m1', args=args)
 
 
-def DeepResNext101V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
+def DeepResNext101V3PlusD_LEANet_OS8(args, num_classes, criterion, criterion_aux):
     """
     ResNext 101 Based Network
     """
@@ -556,7 +555,7 @@ def DeepResNext101V3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux)
     return DeepV3PlusLEANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
-def DeepResNext101V3PlusD_HANet_OS4(args, num_classes, criterion, criterion_aux):
+def DeepResNext101V3PlusD_LEANet_OS4(args, num_classes, criterion, criterion_aux):
     """
     ResNext 101 Based Network
     """
@@ -564,7 +563,7 @@ def DeepResNext101V3PlusD_HANet_OS4(args, num_classes, criterion, criterion_aux)
     return DeepV3PlusLEANet(num_classes, trunk='resnext-101', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D4', skip='m1', args=args)
 
-def DeepShuffleNetV3PlusD_HANet_OS32(args, num_classes, criterion, criterion_aux):
+def DeepShuffleNetV3PlusD_LEANet_OS32(args, num_classes, criterion, criterion_aux):
     """
     ShuffleNet Based Network
     """
@@ -573,7 +572,7 @@ def DeepShuffleNetV3PlusD_HANet_OS32(args, num_classes, criterion, criterion_aux
                     variant='D32', skip='m1', args=args)
 
 
-def DeepMNASNet05V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepMNASNet05V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     MNASNET Based Network
     """
@@ -581,7 +580,7 @@ def DeepMNASNet05V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='mnasnet_05', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepMNASNet10V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepMNASNet10V3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     MNASNET Based Network
     """
@@ -590,7 +589,7 @@ def DeepMNASNet10V3PlusD_HANet(args, num_classes, criterion, criterion_aux):
                     variant='D16', skip='m1', args=args)
 
 
-def DeepShuffleNetV3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepShuffleNetV3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     ShuffleNet Based Network
     """
@@ -598,7 +597,7 @@ def DeepShuffleNetV3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='shufflenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepMobileNetV3PlusD_HANet(args, num_classes, criterion, criterion_aux):
+def DeepMobileNetV3PlusD_LEANet(args, num_classes, criterion, criterion_aux):
     """
     ShuffleNet Based Network
     """
@@ -606,7 +605,7 @@ def DeepMobileNetV3PlusD_HANet(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='mobilenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D16', skip='m1', args=args)
 
-def DeepMobileNetV3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
+def DeepMobileNetV3PlusD_LEANet_OS8(args, num_classes, criterion, criterion_aux):
     """
     ShuffleNet Based Network
     """
@@ -614,7 +613,7 @@ def DeepMobileNetV3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
     return DeepV3PlusLEANet(num_classes, trunk='mobilenetv2', criterion=criterion, criterion_aux=criterion_aux,
                     variant='D', skip='m1', args=args)
 
-def DeepShuffleNetV3PlusD_HANet_OS8(args, num_classes, criterion, criterion_aux):
+def DeepShuffleNetV3PlusD_LEANet_OS8(args, num_classes, criterion, criterion_aux):
     """
     ShuffleNet Based Network
     """
