@@ -40,7 +40,7 @@ pip install tensorboardX==2.0
 pip install thop
 ```
 ### Datasets
-We evaludated LEANet on [WiSe](https://cvhci.anthropomatik.kit.edu/~mhaurile/wise/) and [SPaSe](https://cvhci.anthropomatik.kit.edu/~mhaurile//spase/).<br>
+We evaludated CSSN on [WiSe](https://cvhci.anthropomatik.kit.edu/~mhaurile/wise/) and [SPaSe](https://cvhci.anthropomatik.kit.edu/~mhaurile//spase/).<br>
 The files and make the directory structures as follows.
 ```
 spase
@@ -58,3 +58,6 @@ You should modify the path in **"<path_to_cssn>/config.py"** according to your W
 __C.DATASET.WISE_DIR = '/ssd_scratch/cvit/jobinkv/wise'
 __C.DATASET.SPASE_DIR = '/ssd_scratch/cvit/jobinkv/spase'
 ```
+
+#### All models trained for our paper
+You can download all models evaluated in our paper at [One Drive](https://iiitaphyd-my.sharepoint.com/:f:/g/personal/jobin_kv_research_iiit_ac_in/EuAOiunVn05ErqNr3S_VxXIBaSxq45DHidtjG1z1zdKFqg?e=xb22UG)
