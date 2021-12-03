@@ -8,8 +8,6 @@ Location encoded attention module that utilizes the location encoding of logical
 </p></em>
 </p>
 
-<p> h<sub>&theta;</sub>(x) = &theta;<sub>o</sub> x + &theta;<sub>1</sub>x </p>
-
 This repository provides the official PyTorch implementation of the paper:
 > **Classroom Slide Narration System** Improving classroom slide image Segmentation via Location Encoded Attention Networks<br>
 > Jobin K.V., Ajoy Mondal, and C. V. Jawahar<br>
