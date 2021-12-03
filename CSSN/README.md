@@ -91,7 +91,7 @@ python trainslide.py --dataset $dataset\
   --tb_path "/path/to/tensor/flow/out" --syncbn --sgd --gblur --aux_loss \
   --template_selection_loss_contri 0.1 --backbone_lr 0.01 --multi_optim
 ```
-You can train CSSNet (based on ResNet-101) using **finely annotated training and validation set** with following command.
+You can evaluate CSSNet (based on ResNet-101) using **finely annotated training and validation set** with following command.
 ```
 python trainslide.py --dataset $dataset\
   --arch network.$model$dot$arch \
