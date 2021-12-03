@@ -26,7 +26,7 @@ Click the figure to watch the youtube video of our paper!
 Clone this repository.
 ```
 git clone git@github.com:jobinkv/CSNS.git
-cd CSNS/LEANet
+cd CSNS/CSSN
 ```
 Install following packages.
 ```
