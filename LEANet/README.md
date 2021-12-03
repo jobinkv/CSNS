@@ -9,6 +9,6 @@ Location encoded attention module that utilizes the location encoding of logical
 </p>
 
 This repository provides the official PyTorch implementation of the paper:
-> **Classroom Slide Narration System** Improving classroom slide image Segmentation via Location Encoded Attention Networks<br>
+> **Classroom Slide Narration System** <br>
 > Jobin K.V., Ajoy Mondal, and C. V. Jawahar<br>
 > In CVIP 2021<br>
