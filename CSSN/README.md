@@ -69,3 +69,15 @@ To train ResNet-101 based HANet, you should download ImageNet pretrained ResNet-
 ```
 This pretrained model is from [MIT CSAIL Computer Vision Group](http://sceneparsing.csail.mit.edu/)
 
+## Citation
+If you find this work useful for your research, please cite our paper:
+```
+@InProceedings{Jobin_2021_CVIP,
+author = {Jobin K.V., Ajoy Mondal, and C. V. Jawahar},
+title = {Classroom Slide Narration System},
+booktitle = {Conference on COMPUTER VISION and IMAGE PROCESSING (CVIP)},
+month = {December},
+year = {2021}
+}
+```
+
