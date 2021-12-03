@@ -55,8 +55,8 @@ wise
 You should modify the path in **"<path_to_cssn>/config.py"** according to your WiSe and SPaSe dataset path.
 ```
 #Dir Location
-__C.DATASET.WISE_DIR = '/ssd_scratch/cvit/jobinkv/wise'
-__C.DATASET.SPASE_DIR = '/ssd_scratch/cvit/jobinkv/spase'
+__C.DATASET.WISE_DIR = '/path/to/dataset/wise'
+__C.DATASET.SPASE_DIR = '/path/to/dataset/spase'
 ```
 
 #### All models trained for our paper
