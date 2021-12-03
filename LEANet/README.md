@@ -20,3 +20,21 @@ Click the figure to watch the youtube video of our paper!
 <p align="center">
 <a href="https://youtu.be/PnPYrA8ykF0"><img src="assets/youtube_capture_p.jpg" alt="Youtube Video"></a><br>
 </p>
+
+## Pytorch Implementation
+### Installation
+Clone this repository.
+```
+git clone git@github.com:jobinkv/CSNS.git
+cd CSNS/LEANet
+```
+Install following packages.
+```
+conda create --name leanet python=3.6
+conda activate leanet
+conda install -y pytorch=1.4.0 torchvision=0.5.0 cudatoolkit=10.1 -c pytorch
+conda install scipy==1.4.1
+conda install tqdm==4.46.0
+conda install scikit-image==0.16.2
+pip install tensorboardX==2.0
+pip install thop
