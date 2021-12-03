@@ -88,8 +88,7 @@ python trainslide.py --dataset $dataset\
   --bs_mult 2 --pos_rfactor 18 --dropout 0.1  \
   --best_model_name $model_name --jobid $SLURM_JOB_ID\
   --exp $SLURM_NODELIST_$SLURM_JOB_ID --ckpt /ssd_scratch/cvit/jobinkv/ \
-  --tb_path "/ssd_scratch/cvit/jobinkv/$SLURM_JOB_ID" --syncbn --sgd --gblur --aux_loss \
-  --snapshot "/ssd_scratch/cvit/jobinkv/$SLURM_JOB_ID/$model_name" \
+  --tb_path "/path/to/tensor/flow/out" --syncbn --sgd --gblur --aux_loss \
   --template_selection_loss_contri 0.1 --backbone_lr 0.01 --multi_optim
 ```
 You can train CSSNet (based on ResNet-101) using **finely annotated training and validation set** with following command.
